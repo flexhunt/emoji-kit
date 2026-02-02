@@ -1,0 +1,50 @@
+{
+    "name": "@ayuuxh/emoji-kit",
+    "version": "1.0.7",
+    "description": "Multi-style emoji renderer for React with animated Telegram emojis support",
+    "main": "./dist/index.js",
+    "module": "./dist/index.mjs",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/index.mjs",
+            "require": "./dist/index.js",
+            "types": "./dist/index.d.ts"
+        }
+    },
+    "files": [
+        "dist",
+        "src"
+    ],
+    "scripts": {
+        "build": "tsup",
+        "dev": "tsup --watch"
+    },
+    "peerDependencies": {
+        "react": ">=18.0.0",
+        "react-dom": ">=18.0.0"
+    },
+    "devDependencies": {
+        "@types/react": "^19",
+        "tsup": "^8.0.0",
+        "typescript": "^5"
+    },
+    "dependencies": {
+        "emoji-regex": "^10.3.0"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/flexhunt/emoji-kit.git"
+    },
+    "keywords": [
+        "emoji",
+        "react",
+        "animated",
+        "telegram",
+        "apple",
+        "google",
+        "twitter"
+    ],
+    "author": "flexhunt",
+    "license": "MIT"
+}
