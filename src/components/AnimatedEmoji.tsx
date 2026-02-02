@@ -48,6 +48,20 @@ const toHex = (str: string, skipFe0f: boolean = true): string => {
 }
 
 
+// Shimmer animation keyframes injected once
+const shimmerStyleId = 'emoji-kit-shimmer-style'
+if (typeof document !== 'undefined' && !document.getElementById(shimmerStyleId)) {
+    const style = document.createElement('style')
+    style.id = shimmerStyleId
+    style.textContent = `
+        @keyframes emoji-shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+    `
+    document.head.appendChild(style)
+}
+
 export const AnimatedEmoji: React.FC<AnimatedEmojiProps> = ({
     id,
     size = 24,
@@ -59,7 +73,8 @@ export const AnimatedEmoji: React.FC<AnimatedEmojiProps> = ({
     const activeStyle = propStyle || globalStyle || 'apple'
 
     const [isVisible, setIsVisible] = useState(false)
-    const [urlIndex, setUrlIndex] = useState(0) // Track which URL we're trying
+    const [isLoaded, setIsLoaded] = useState(false)
+    const [urlIndex, setUrlIndex] = useState(0)
     const [hasError, setHasError] = useState(false)
     const containerRef = useRef<HTMLDivElement>(null)
 
@@ -82,42 +97,37 @@ export const AnimatedEmoji: React.FC<AnimatedEmojiProps> = ({
 
     const sizeValue = typeof size === 'number' ? size : size
 
-    // Helper: Check if id is a shortcode (alphanumeric/underscore/dash) vs native emoji
+    // Helper: Check if id is a shortcode vs native emoji
     const isShortcode = /^[a-zA-Z0-9_+-]+$/.test(id)
     const mappedPath = emojiMap[id]
     const isFlexhunt = activeStyle === 'flexhunt' || !activeStyle
 
-
+    // Get display emoji for skeleton (use native emoji or shortcode text)
+    const displayEmoji = isShortcode ? (emojiMap[id] ? id : `:${id}:`) : id
 
     // Build list of URLs to try in order
     const urls: string[] = []
 
     if (isFlexhunt) {
-        // Flexhunt: animated first, then apple CDN fallback
         if (mappedPath) {
             urls.push(`${BASE_ANIMATED_URL}/${mappedPath}`)
         }
         if (!isShortcode) {
-            // Try CDN with fe0f stripped, then with fe0f
             const urlWithoutFe0f = getCdnUrl(toHex(id, true), 'apple')
             const urlWithFe0f = getCdnUrl(toHex(id, false), 'apple')
             if (urlWithoutFe0f) urls.push(urlWithoutFe0f)
             if (urlWithFe0f && urlWithFe0f !== urlWithoutFe0f) urls.push(urlWithFe0f)
         }
     } else {
-        // Static styles: CDN first, then animated fallback for shortcodes
         if (isShortcode) {
-            // Shortcodes can't be converted to hex, use animated
             if (mappedPath) {
                 urls.push(`${BASE_ANIMATED_URL}/${mappedPath}`)
             }
         } else {
-            // Native emoji: try CDN with different hex formats
             const urlWithoutFe0f = getCdnUrl(toHex(id, true), activeStyle)
             const urlWithFe0f = getCdnUrl(toHex(id, false), activeStyle)
             if (urlWithoutFe0f) urls.push(urlWithoutFe0f)
             if (urlWithFe0f && urlWithFe0f !== urlWithoutFe0f) urls.push(urlWithFe0f)
-            // Also try animated as last resort
             if (mappedPath) {
                 urls.push(`${BASE_ANIMATED_URL}/${mappedPath}`)
             }
@@ -126,15 +136,17 @@ export const AnimatedEmoji: React.FC<AnimatedEmojiProps> = ({
 
     const currentUrl = urls[urlIndex]
 
-
-
-    // Handle image error - try next URL
     const handleError = () => {
         if (urlIndex < urls.length - 1) {
             setUrlIndex(urlIndex + 1)
+            setIsLoaded(false)
         } else {
             setHasError(true)
         }
+    }
+
+    const handleLoad = () => {
+        setIsLoaded(true)
     }
 
     // Fallback to native text
@@ -142,6 +154,8 @@ export const AnimatedEmoji: React.FC<AnimatedEmojiProps> = ({
         return (
             <span
                 className={className}
+                role="img"
+                aria-label={`emoji ${id}`}
                 style={{
                     fontSize: typeof size === 'number' ? `${size}px` : size,
                     lineHeight: '1',
@@ -156,10 +170,31 @@ export const AnimatedEmoji: React.FC<AnimatedEmojiProps> = ({
         )
     }
 
+    // Skeleton loader styles
+    const skeletonStyles: React.CSSProperties = {
+        fontSize: typeof size === 'number' ? `${size * 0.8}px` : size,
+        lineHeight: '1',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: sizeValue,
+        height: sizeValue,
+        filter: 'grayscale(100%)',
+        opacity: 0.3,
+        background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)',
+        backgroundSize: '200% 100%',
+        animation: 'emoji-shimmer 1.5s infinite',
+        WebkitBackgroundClip: 'text',
+        backgroundClip: 'text',
+        fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
+    }
+
     return (
         <span
             ref={containerRef}
             className={className}
+            role="img"
+            aria-label={`emoji ${id}`}
             style={{
                 width: sizeValue,
                 height: sizeValue,
@@ -168,21 +203,36 @@ export const AnimatedEmoji: React.FC<AnimatedEmojiProps> = ({
                 justifyContent: 'center',
                 verticalAlign: 'middle',
                 lineHeight: 0,
+                position: 'relative',
                 ...customStyle
             }}
         >
-            {isVisible ? (
+            {/* Skeleton: greyed native emoji with shimmer */}
+            {(!isVisible || !isLoaded) && (
+                <span style={skeletonStyles}>
+                    {displayEmoji}
+                </span>
+            )}
+
+            {/* Actual image */}
+            {isVisible && (
                 <img
                     src={currentUrl}
                     alt={id}
                     width="100%"
                     height="100%"
-                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'contain',
+                        position: isLoaded ? 'relative' : 'absolute',
+                        opacity: isLoaded ? 1 : 0,
+                        transition: 'opacity 0.2s ease-in-out',
+                    }}
                     loading="lazy"
+                    onLoad={handleLoad}
                     onError={handleError}
                 />
-            ) : (
-                <span style={{ width: sizeValue, height: sizeValue, display: 'inline-block' }} />
             )}
         </span>
     )

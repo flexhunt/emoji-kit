@@ -36,4 +36,44 @@ interface EmojiRendererProps {
 }
 declare const EmojiRenderer: React.FC<EmojiRendererProps>;
 
-export { AnimatedEmoji, EVENT_NAME, EmojiRenderer, type EmojiStyle, EmojiText, STORAGE_KEY, useEmojiStyle };
+interface CategoryConfig {
+    id: string;
+    icon?: string;
+    label?: string;
+}
+interface EmojiPickerProps {
+    onSelect: (emoji: string) => void;
+    width?: number | string;
+    columns?: number;
+    showPreview?: boolean;
+    dynamicWidth?: boolean;
+    categories?: CategoryConfig[];
+    searchPlaceholder?: string;
+    maxHeight?: number;
+    theme?: 'dark' | 'light' | 'auto';
+    showFooter?: boolean;
+    emojiSize?: number;
+}
+declare const EmojiPicker: React.FC<EmojiPickerProps>;
+
+declare const POPULAR_EMOJIS: string[];
+/**
+ * Preload popular emoji images for faster rendering
+ * Call this early in your app (e.g., in useEffect or on app load)
+ */
+declare const preloadPopularEmojis: () => void;
+/**
+ * Preload specific emojis by their IDs (native or shortcode)
+ * @param emojis - Array of emoji IDs to preload
+ */
+declare const preloadEmojis: (emojis: string[]) => void;
+/**
+ * Get list of all available animated emojis
+ */
+declare const getAvailableEmojis: () => string[];
+/**
+ * Get list of all available shortcodes
+ */
+declare const getAvailableShortcodes: () => string[];
+
+export { AnimatedEmoji, EVENT_NAME, EmojiPicker, EmojiRenderer, type EmojiStyle, EmojiText, POPULAR_EMOJIS, STORAGE_KEY, getAvailableEmojis, getAvailableShortcodes, preloadEmojis, preloadPopularEmojis, useEmojiStyle };

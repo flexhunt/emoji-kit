@@ -22,9 +22,15 @@ var index_exports = {};
 __export(index_exports, {
   AnimatedEmoji: () => AnimatedEmoji,
   EVENT_NAME: () => EVENT_NAME,
+  EmojiPicker: () => EmojiPicker,
   EmojiRenderer: () => EmojiRenderer,
   EmojiText: () => EmojiText,
+  POPULAR_EMOJIS: () => POPULAR_EMOJIS,
   STORAGE_KEY: () => STORAGE_KEY,
+  getAvailableEmojis: () => getAvailableEmojis,
+  getAvailableShortcodes: () => getAvailableShortcodes,
+  preloadEmojis: () => preloadEmojis,
+  preloadPopularEmojis: () => preloadPopularEmojis,
   useEmojiStyle: () => useEmojiStyle
 });
 module.exports = __toCommonJS(index_exports);
@@ -1222,6 +1228,18 @@ var toHex = (str, skipFe0f = true) => {
   }
   return output.join("-");
 };
+var shimmerStyleId = "emoji-kit-shimmer-style";
+if (typeof document !== "undefined" && !document.getElementById(shimmerStyleId)) {
+  const style = document.createElement("style");
+  style.id = shimmerStyleId;
+  style.textContent = `
+        @keyframes emoji-shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+    `;
+  document.head.appendChild(style);
+}
 var AnimatedEmoji = ({
   id,
   size = 24,
@@ -1232,6 +1250,7 @@ var AnimatedEmoji = ({
   const { style: globalStyle } = useEmojiStyle();
   const activeStyle = propStyle || globalStyle || "apple";
   const [isVisible, setIsVisible] = (0, import_react2.useState)(false);
+  const [isLoaded, setIsLoaded] = (0, import_react2.useState)(false);
   const [urlIndex, setUrlIndex] = (0, import_react2.useState)(0);
   const [hasError, setHasError] = (0, import_react2.useState)(false);
   const containerRef = (0, import_react2.useRef)(null);
@@ -1253,6 +1272,7 @@ var AnimatedEmoji = ({
   const isShortcode = /^[a-zA-Z0-9_+-]+$/.test(id);
   const mappedPath = emojiMap[id];
   const isFlexhunt = activeStyle === "flexhunt" || !activeStyle;
+  const displayEmoji = isShortcode ? emojiMap[id] ? id : `:${id}:` : id;
   const urls = [];
   if (isFlexhunt) {
     if (mappedPath) {
@@ -1283,15 +1303,21 @@ var AnimatedEmoji = ({
   const handleError = () => {
     if (urlIndex < urls.length - 1) {
       setUrlIndex(urlIndex + 1);
+      setIsLoaded(false);
     } else {
       setHasError(true);
     }
+  };
+  const handleLoad = () => {
+    setIsLoaded(true);
   };
   if (activeStyle === "native" || hasError || urls.length === 0) {
     return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
       "span",
       {
         className,
+        role: "img",
+        "aria-label": `emoji ${id}`,
         style: {
           fontSize: typeof size === "number" ? `${size}px` : size,
           lineHeight: "1",
@@ -1304,11 +1330,30 @@ var AnimatedEmoji = ({
       }
     );
   }
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+  const skeletonStyles = {
+    fontSize: typeof size === "number" ? `${size * 0.8}px` : size,
+    lineHeight: "1",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: sizeValue,
+    height: sizeValue,
+    filter: "grayscale(100%)",
+    opacity: 0.3,
+    background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)",
+    backgroundSize: "200% 100%",
+    animation: "emoji-shimmer 1.5s infinite",
+    WebkitBackgroundClip: "text",
+    backgroundClip: "text",
+    fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"'
+  };
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
     "span",
     {
       ref: containerRef,
       className,
+      role: "img",
+      "aria-label": `emoji ${id}`,
       style: {
         width: sizeValue,
         height: sizeValue,
@@ -1317,20 +1362,32 @@ var AnimatedEmoji = ({
         justifyContent: "center",
         verticalAlign: "middle",
         lineHeight: 0,
+        position: "relative",
         ...customStyle
       },
-      children: isVisible ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "img",
-        {
-          src: currentUrl,
-          alt: id,
-          width: "100%",
-          height: "100%",
-          style: { width: "100%", height: "100%", objectFit: "contain" },
-          loading: "lazy",
-          onError: handleError
-        }
-      ) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { width: sizeValue, height: sizeValue, display: "inline-block" } })
+      children: [
+        (!isVisible || !isLoaded) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: skeletonStyles, children: displayEmoji }),
+        isVisible && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          "img",
+          {
+            src: currentUrl,
+            alt: id,
+            width: "100%",
+            height: "100%",
+            style: {
+              width: "100%",
+              height: "100%",
+              objectFit: "contain",
+              position: isLoaded ? "relative" : "absolute",
+              opacity: isLoaded ? 1 : 0,
+              transition: "opacity 0.2s ease-in-out"
+            },
+            loading: "lazy",
+            onLoad: handleLoad,
+            onError: handleError
+          }
+        )
+      ]
     }
   );
 };
@@ -1461,13 +1518,422 @@ var EmojiRenderer = ({ text, size = 24, className }) => {
     return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: part }, index);
   }) });
 };
+
+// src/components/EmojiPicker.tsx
+var import_react3 = require("react");
+var import_jsx_runtime4 = require("react/jsx-runtime");
+var emojiMap2 = emoji_map_default;
+var SKIN_TONES = [
+  { id: "none", color: "#ffb930", label: "Default" },
+  // Default yellow
+  { id: "light", color: "#fadcbc", code: "1f3fb", label: "Light" },
+  { id: "medium-light", color: "#e0bb95", code: "1f3fc", label: "Medium-Light" },
+  { id: "medium", color: "#bf8f68", code: "1f3fd", label: "Medium" },
+  { id: "medium-dark", color: "#9b643d", code: "1f3fe", label: "Medium-Dark" },
+  { id: "dark", color: "#594539", code: "1f3ff", label: "Dark" }
+];
+var pickerStyleId = "emoji-kit-picker-style";
+if (typeof document !== "undefined" && !document.getElementById(pickerStyleId)) {
+  const style = document.createElement("style");
+  style.id = pickerStyleId;
+  style.textContent = `
+        .emoji-picker-container {
+            display: flex;
+            flex-direction: column;
+            background: var(--emoji-picker-bg, #1a1a1a);
+            border-radius: var(--emoji-picker-radius, 12px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .emoji-picker-container.dynamic-width {
+            min-width: 280px;
+            resize: horizontal;
+            overflow: auto;
+        }
+        .emoji-picker-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-bottom: 1px solid var(--emoji-picker-border, #333);
+        }
+        .emoji-picker-preview {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            background: var(--emoji-picker-preview-bg, #2a2a2a);
+            border-radius: 10px;
+            flex-shrink: 0;
+        }
+        .emoji-picker-search {
+            flex: 1;
+        }
+        .emoji-picker-search input {
+            width: 100%;
+            padding: 10px 14px;
+            border: none;
+            border-radius: 8px;
+            background: var(--emoji-picker-input-bg, #2a2a2a);
+            color: var(--emoji-picker-text, #fff);
+            font-size: 14px;
+            outline: none;
+        }
+        .emoji-picker-search input::placeholder {
+            color: #888;
+        }
+        .emoji-picker-search input:focus {
+            background: var(--emoji-picker-input-focus, #333);
+        }
+        .emoji-picker-categories {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--emoji-picker-border, #333);
+        }
+        .emoji-picker-cat-list {
+            display: flex;
+            gap: 2px;
+            overflow-x: auto;
+        }
+        .emoji-picker-cat-list::-webkit-scrollbar {
+            height: 0px;
+            display: none;
+        }
+        .emoji-picker-category-btn {
+            padding: 6px;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: #888;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+        }
+        .emoji-picker-category-btn:hover {
+            background: var(--emoji-picker-hover, #333);
+            color: var(--emoji-picker-text, #fff);
+        }
+        .emoji-picker-category-btn.active {
+            background: var(--emoji-picker-active, #3b82f6);
+            color: #fff;
+        }
+        .emoji-picker-skin-tones {
+            display: flex;
+            gap: 4px;
+            padding-left: 8px;
+            border-left: 1px solid var(--emoji-picker-border, #333);
+        }
+        .skin-tone-btn {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .skin-tone-btn:hover {
+            transform: scale(1.2);
+        }
+        .skin-tone-btn.active {
+            transform: scale(1.3);
+            box-shadow: 0 0 0 2px var(--emoji-picker-active, #3b82f6);
+        }
+        .emoji-picker-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 2px;
+            padding: 8px;
+            max-height: var(--emoji-picker-grid-height, 280px);
+            overflow-y: auto;
+            content-visibility: auto; 
+        }
+        .emoji-picker-grid::-webkit-scrollbar {
+            width: 6px;
+        }
+        .emoji-picker-grid::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 3px;
+        }
+        .emoji-picker-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            aspect-ratio: 1;
+            font-size: var(--emoji-picker-emoji-size, 24px);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.1s;
+            user-select: none;
+        }
+        .emoji-picker-item:hover {
+            background: var(--emoji-picker-hover, #333);
+        }
+        .emoji-picker-item:active {
+            transform: scale(0.95);
+        }
+        .emoji-picker-empty {
+            grid-column: 1 / -1;
+            padding: 40px;
+            text-align: center;
+            color: #666;
+        }
+        .emoji-picker-footer {
+            padding: 8px 12px;
+            border-top: 1px solid var(--emoji-picker-border, #333);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #666;
+        }
+    `;
+  document.head.appendChild(style);
+}
+var DEFAULT_CATEGORIES = [
+  { id: "all", icon: "\u{1F3AF}", label: "All" },
+  { id: "Smileys", icon: "\u{1F60A}", label: "Smileys" },
+  { id: "People", icon: "\u{1F44B}", label: "People" },
+  { id: "Animals", icon: "\u{1F431}", label: "Animals" },
+  { id: "Food", icon: "\u{1F355}", label: "Food" },
+  { id: "Activity", icon: "\u26BD", label: "Activity" },
+  { id: "Travel", icon: "\u2708\uFE0F", label: "Travel" },
+  { id: "Objects", icon: "\u{1F4A1}", label: "Objects" },
+  { id: "Symbols", icon: "\u2764\uFE0F", label: "Symbols" }
+];
+var toHex3 = (str) => {
+  const output = [];
+  for (let i = 0; i < str.length; i++) {
+    const code = str.codePointAt(i);
+    if (code) {
+      output.push(code.toString(16).toLowerCase());
+      if (code > 65535) i++;
+    }
+  }
+  return output.join("-");
+};
+var EmojiPicker = ({
+  onSelect,
+  width = 320,
+  columns = 8,
+  showPreview = true,
+  dynamicWidth = false,
+  categories,
+  searchPlaceholder = "Search emojis...",
+  maxHeight = 280,
+  theme = "dark",
+  showFooter = false,
+  emojiSize = 24
+}) => {
+  const [search, setSearch] = (0, import_react3.useState)("");
+  const [category, setCategory] = (0, import_react3.useState)("all");
+  const [hoveredEmoji, setHoveredEmoji] = (0, import_react3.useState)(null);
+  const [skinTone, setSkinTone] = (0, import_react3.useState)("none");
+  const { style: globalStyle } = useEmojiStyle();
+  const activeStyle = globalStyle || "apple";
+  const useNativeRender = activeStyle === "native";
+  const activeCategories = categories || DEFAULT_CATEGORIES;
+  const allEmojis = (0, import_react3.useMemo)(() => {
+    return Object.entries(emojiMap2).filter(([key]) => !/^[a-zA-Z0-9_+-]+$/.test(key)).map(([emoji, path]) => ({ emoji, path }));
+  }, []);
+  const filteredEmojis = (0, import_react3.useMemo)(() => {
+    return allEmojis.filter(({ emoji, path }) => {
+      if (search) {
+        const searchLower = search.toLowerCase();
+        const pathLower = path.toLowerCase();
+        if (!emoji.includes(search) && !pathLower.includes(searchLower)) {
+          return false;
+        }
+      }
+      if (category !== "all") {
+        if (!path.startsWith(category)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [allEmojis, search, category]);
+  const handleSelect = (0, import_react3.useCallback)((emoji) => {
+    onSelect(emoji);
+  }, [onSelect]);
+  const themeStyles = theme === "light" ? {
+    "--emoji-picker-bg": "#ffffff",
+    "--emoji-picker-border": "#e5e5e5",
+    "--emoji-picker-preview-bg": "#f5f5f5",
+    "--emoji-picker-input-bg": "#f5f5f5",
+    "--emoji-picker-input-focus": "#ebebeb",
+    "--emoji-picker-text": "#1a1a1a",
+    "--emoji-picker-hover": "#f0f0f0",
+    "--emoji-picker-active": "#3b82f6"
+  } : {};
+  const getOptimizedUrl = (emoji) => {
+    const path = emojiMap2[emoji];
+    if (activeStyle === "flexhunt" && path) {
+      return `https://raw.githubusercontent.com/AyuXh/telegram-emoji/main/animated/main/${path}`;
+    }
+    return `https://cdn.jsdelivr.net/npm/emoji-datasource-${activeStyle}/img/${activeStyle}/64/${toHex3(emoji)}.png`;
+  };
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
+    "div",
+    {
+      className: `emoji-picker-container ${dynamicWidth ? "dynamic-width" : ""}`,
+      style: {
+        width: dynamicWidth ? void 0 : width,
+        ["--emoji-picker-grid-height"]: `${maxHeight}px`,
+        ["--emoji-picker-emoji-size"]: `${emojiSize}px`,
+        ...themeStyles
+      },
+      children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "emoji-picker-header", children: [
+          showPreview && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "emoji-picker-preview", children: hoveredEmoji ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(AnimatedEmoji, { id: hoveredEmoji, size: 32 }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { style: { fontSize: 28, opacity: 0.3 }, children: "\u{1F60A}" }) }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "emoji-picker-search", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+            "input",
+            {
+              type: "text",
+              placeholder: searchPlaceholder,
+              value: search,
+              onChange: (e) => setSearch(e.target.value)
+            }
+          ) })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "emoji-picker-categories", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "emoji-picker-cat-list", children: activeCategories.map((cat) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+            "button",
+            {
+              className: `emoji-picker-category-btn ${category === cat.id ? "active" : ""}`,
+              onClick: () => setCategory(cat.id),
+              title: cat.label || cat.id,
+              children: cat.icon || cat.id.charAt(0)
+            },
+            cat.id
+          )) }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "emoji-picker-skin-tones", children: SKIN_TONES.map((tone) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+            "button",
+            {
+              className: `skin-tone-btn ${skinTone === tone.id ? "active" : ""}`,
+              style: { backgroundColor: tone.color },
+              onClick: () => setSkinTone(tone.id),
+              title: tone.label
+            },
+            tone.id
+          )) })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+          "div",
+          {
+            className: "emoji-picker-grid",
+            style: { gridTemplateColumns: `repeat(${columns}, 1fr)` },
+            children: filteredEmojis.length > 0 ? filteredEmojis.map(({ emoji }) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+              "div",
+              {
+                className: "emoji-picker-item",
+                onClick: () => handleSelect(emoji),
+                onMouseEnter: () => setHoveredEmoji(emoji),
+                onMouseLeave: () => setHoveredEmoji(null),
+                children: useNativeRender ? emoji : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                  "img",
+                  {
+                    src: getOptimizedUrl(emoji),
+                    alt: emoji,
+                    style: { width: "100%", height: "100%", objectFit: "contain" },
+                    loading: "lazy",
+                    decoding: "async"
+                  }
+                )
+              },
+              emoji
+            )) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "emoji-picker-empty", children: "No emojis found" })
+          }
+        ),
+        showFooter && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "emoji-picker-footer", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { children: [
+            filteredEmojis.length,
+            " emojis"
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: "emoji-kit" })
+        ] })
+      ]
+    }
+  );
+};
+
+// src/utils/preload.ts
+var emojiMap3 = emoji_map_default;
+var BASE_ANIMATED_URL2 = "https://raw.githubusercontent.com/AyuXh/telegram-emoji/main/animated/main";
+var POPULAR_EMOJIS = [
+  "\u{1F60A}",
+  "\u{1F602}",
+  "\u2764\uFE0F",
+  "\u{1F525}",
+  "\u{1F44D}",
+  "\u{1F389}",
+  "\u{1F680}",
+  "\u2728",
+  "\u{1F4AA}",
+  "\u{1F64F}",
+  "\u{1F62D}",
+  "\u{1F97A}",
+  "\u{1F480}",
+  "\u2705",
+  "\u2B50",
+  "\u{1F4AF}",
+  "\u{1F44F}",
+  "\u{1F91D}",
+  "\u{1F494}",
+  "\u{1F3AF}",
+  "\u{1F4A1}",
+  "\u{1F31F}",
+  "\u{1F4A5}",
+  "\u{1F3C6}"
+];
+var preloadPopularEmojis = () => {
+  if (typeof window === "undefined") return;
+  POPULAR_EMOJIS.forEach((emoji) => {
+    const path = emojiMap3[emoji];
+    if (path) {
+      const img = new Image();
+      img.src = `${BASE_ANIMATED_URL2}/${path}`;
+    }
+  });
+};
+var preloadEmojis = (emojis) => {
+  if (typeof window === "undefined") return;
+  emojis.forEach((emoji) => {
+    const path = emojiMap3[emoji];
+    if (path) {
+      const img = new Image();
+      img.src = `${BASE_ANIMATED_URL2}/${path}`;
+    }
+  });
+};
+var getAvailableEmojis = () => {
+  return Object.keys(emojiMap3).filter((key) => !/^[a-zA-Z0-9_+-]+$/.test(key));
+};
+var getAvailableShortcodes = () => {
+  return Object.keys(emojiMap3).filter((key) => /^[a-zA-Z0-9_+-]+$/.test(key));
+};
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   AnimatedEmoji,
   EVENT_NAME,
+  EmojiPicker,
   EmojiRenderer,
   EmojiText,
+  POPULAR_EMOJIS,
   STORAGE_KEY,
+  getAvailableEmojis,
+  getAvailableShortcodes,
+  preloadEmojis,
+  preloadPopularEmojis,
   useEmojiStyle
 });
 //# sourceMappingURL=index.js.map
