@@ -1,6 +1,6 @@
 {
     "name": "@ayuuxh/emoji-kit",
-    "version": "1.0.9",
+    "version": "1.0.10",
     "description": "Multi-style emoji renderer for React with animated Telegram emojis support",
     "main": "./dist/index.js",
     "module": "./dist/index.mjs",
