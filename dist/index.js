@@ -22,6 +22,7 @@ var index_exports = {};
 __export(index_exports, {
   AnimatedEmoji: () => AnimatedEmoji,
   EVENT_NAME: () => EVENT_NAME,
+  EmojiInput: () => EmojiInput,
   EmojiPicker: () => EmojiPicker,
   EmojiRenderer: () => EmojiRenderer,
   EmojiText: () => EmojiText,
@@ -31,6 +32,7 @@ __export(index_exports, {
   getAvailableShortcodes: () => getAvailableShortcodes,
   preloadEmojis: () => preloadEmojis,
   preloadPopularEmojis: () => preloadPopularEmojis,
+  useEmojiInput: () => useEmojiInput,
   useEmojiStyle: () => useEmojiStyle
 });
 module.exports = __toCommonJS(index_exports);
@@ -1866,6 +1868,325 @@ var EmojiPicker = ({
   );
 };
 
+// src/components/EmojiInput.tsx
+var import_react5 = require("react");
+
+// src/hooks/use-emoji-input.ts
+var import_react4 = require("react");
+var EMOJI_REGEX2 = emoji_regex_default();
+var SHORTCODE_REGEX = /:[a-zA-Z0-9_+-]+:/g;
+function useEmojiInput(options = {}) {
+  const { emojiSize = 20 } = options;
+  const lastHtmlRef = (0, import_react4.useRef)("");
+  const getAllEmojis = (0, import_react4.useCallback)((text) => {
+    const emojis = [];
+    const nativeMatches = text.match(EMOJI_REGEX2);
+    if (nativeMatches) {
+      emojis.push(...nativeMatches);
+    }
+    const shortcodeMatches = text.match(SHORTCODE_REGEX);
+    if (shortcodeMatches) {
+      emojis.push(...shortcodeMatches);
+    }
+    return [...new Set(emojis)];
+  }, []);
+  const createEmojiHtml = (0, import_react4.useCallback)((emoji) => {
+    const isShortcode = emoji.startsWith(":") && emoji.endsWith(":");
+    const emojiId = isShortcode ? emoji.slice(1, -1) : emoji;
+    return `<span 
+            class="emoji-input-emoji" 
+            data-emoji="${emoji}" 
+            data-emoji-id="${emojiId}"
+            contenteditable="false"
+            style="
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: ${emojiSize}px;
+                height: ${emojiSize}px;
+                vertical-align: middle;
+                user-select: all;
+            "
+        >${emoji}</span>`;
+  }, [emojiSize]);
+  const replaceEmojisWithHtml = (0, import_react4.useCallback)((text) => {
+    const emojis = getAllEmojis(text);
+    let result = text;
+    emojis.forEach((emoji) => {
+      const escapedEmoji = emoji.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      result = result.replace(new RegExp(escapedEmoji, "g"), createEmojiHtml(emoji));
+    });
+    return result;
+  }, [getAllEmojis, createEmojiHtml]);
+  const extractTextFromHtml = (0, import_react4.useCallback)((html) => {
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    const emojiSpans = container.querySelectorAll("[data-emoji]");
+    emojiSpans.forEach((span) => {
+      const emoji = span.getAttribute("data-emoji") || "";
+      span.replaceWith(emoji);
+    });
+    return container.textContent || "";
+  }, []);
+  const insertHtmlAtCaret = (0, import_react4.useCallback)((html) => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    const range = selection.getRangeAt(0);
+    range.deleteContents();
+    const temp = document.createElement("div");
+    temp.innerHTML = html;
+    const fragment = document.createDocumentFragment();
+    let lastNode = null;
+    while (temp.firstChild) {
+      lastNode = fragment.appendChild(temp.firstChild);
+    }
+    range.insertNode(fragment);
+    if (lastNode) {
+      const newRange = document.createRange();
+      newRange.setStartAfter(lastNode);
+      newRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(newRange);
+    }
+  }, []);
+  const handlePaste = (0, import_react4.useCallback)((e) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData("text/plain");
+    const html = replaceEmojisWithHtml(text);
+    insertHtmlAtCaret(html);
+  }, [replaceEmojisWithHtml, insertHtmlAtCaret]);
+  const processContent = (0, import_react4.useCallback)((element) => {
+    const currentText = extractTextFromHtml(element.innerHTML);
+    const emojis = getAllEmojis(currentText);
+    if (emojis.length > 0) {
+      const selection = window.getSelection();
+      const range = selection?.getRangeAt(0);
+      const cursorOffset = range?.startOffset || 0;
+      const newHtml = replaceEmojisWithHtml(currentText);
+      if (newHtml !== lastHtmlRef.current) {
+        element.innerHTML = newHtml;
+        lastHtmlRef.current = newHtml;
+        const newRange = document.createRange();
+        newRange.selectNodeContents(element);
+        newRange.collapse(false);
+        selection?.removeAllRanges();
+        selection?.addRange(newRange);
+      }
+    }
+    return currentText;
+  }, [extractTextFromHtml, getAllEmojis, replaceEmojisWithHtml]);
+  return {
+    replaceEmojisWithHtml,
+    extractTextFromHtml,
+    insertHtmlAtCaret,
+    handlePaste,
+    processContent,
+    getAllEmojis
+  };
+}
+
+// src/components/EmojiInput.tsx
+var import_jsx_runtime5 = require("react/jsx-runtime");
+var EmojiInputComponent = (0, import_react5.forwardRef)((props, ref) => {
+  const {
+    value = "",
+    onChange,
+    onSubmit,
+    placeholder = "Type a message...",
+    className = "",
+    emojiSize = 20,
+    showPicker = true,
+    style,
+    inputStyle,
+    disabled = false,
+    maxLength,
+    onFocus,
+    onBlur
+  } = props;
+  const inputRef = (0, import_react5.useRef)(null);
+  const [showPlaceholder, setShowPlaceholder] = (0, import_react5.useState)(!value);
+  const [pickerOpen, setPickerOpen] = (0, import_react5.useState)(false);
+  const {
+    replaceEmojisWithHtml,
+    extractTextFromHtml,
+    handlePaste,
+    processContent
+  } = useEmojiInput({ emojiSize });
+  (0, import_react5.useImperativeHandle)(ref, () => ({
+    focus: () => inputRef.current?.focus(),
+    clear: () => {
+      if (inputRef.current) {
+        inputRef.current.innerHTML = "";
+        setShowPlaceholder(true);
+        onChange?.("");
+      }
+    },
+    getText: () => {
+      if (!inputRef.current) return "";
+      return extractTextFromHtml(inputRef.current.innerHTML);
+    },
+    insertText: (text) => {
+      if (!inputRef.current) return;
+      inputRef.current.focus();
+      const html = replaceEmojisWithHtml(text);
+      document.execCommand("insertHTML", false, html);
+    }
+  }));
+  (0, import_react5.useEffect)(() => {
+    if (inputRef.current && value !== void 0) {
+      const currentText = extractTextFromHtml(inputRef.current.innerHTML);
+      if (currentText !== value) {
+        inputRef.current.innerHTML = replaceEmojisWithHtml(value);
+        setShowPlaceholder(!value);
+      }
+    }
+  }, [value, extractTextFromHtml, replaceEmojisWithHtml]);
+  const handleInput = (0, import_react5.useCallback)(() => {
+    if (!inputRef.current) return;
+    const text = processContent(inputRef.current);
+    if (maxLength && text.length > maxLength) {
+      inputRef.current.innerHTML = replaceEmojisWithHtml(text.slice(0, maxLength));
+      return;
+    }
+    setShowPlaceholder(!text);
+    onChange?.(text);
+  }, [processContent, maxLength, replaceEmojisWithHtml, onChange]);
+  const handleKeyDown = (0, import_react5.useCallback)((e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (inputRef.current) {
+        const text = extractTextFromHtml(inputRef.current.innerHTML);
+        if (text.trim()) {
+          onSubmit?.(text);
+        }
+      }
+    }
+  }, [extractTextFromHtml, onSubmit]);
+  const handleEmojiSelect = (0, import_react5.useCallback)((emoji) => {
+    if (!inputRef.current) return;
+    inputRef.current.focus();
+    const html = replaceEmojisWithHtml(emoji);
+    document.execCommand("insertHTML", false, html);
+    handleInput();
+    setPickerOpen(false);
+  }, [replaceEmojisWithHtml, handleInput]);
+  const handleFocus = (0, import_react5.useCallback)(() => {
+    setShowPlaceholder(false);
+    onFocus?.();
+  }, [onFocus]);
+  const handleBlur = (0, import_react5.useCallback)(() => {
+    if (inputRef.current) {
+      const text = extractTextFromHtml(inputRef.current.innerHTML);
+      setShowPlaceholder(!text);
+    }
+    onBlur?.();
+  }, [extractTextFromHtml, onBlur]);
+  return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+    "div",
+    {
+      className: `emoji-input-container ${className}`,
+      style: {
+        position: "relative",
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        ...style
+      },
+      children: [
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+          "div",
+          {
+            style: {
+              position: "relative",
+              flex: 1,
+              minHeight: "40px"
+            },
+            children: [
+              showPlaceholder && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                "div",
+                {
+                  className: "emoji-input-placeholder",
+                  style: {
+                    position: "absolute",
+                    top: "50%",
+                    left: "12px",
+                    transform: "translateY(-50%)",
+                    color: "#9ca3af",
+                    pointerEvents: "none",
+                    userSelect: "none"
+                  },
+                  children: placeholder
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                "div",
+                {
+                  ref: inputRef,
+                  contentEditable: !disabled,
+                  className: "emoji-input-field",
+                  onInput: handleInput,
+                  onKeyDown: handleKeyDown,
+                  onPaste: handlePaste,
+                  onFocus: handleFocus,
+                  onBlur: handleBlur,
+                  style: {
+                    minHeight: "40px",
+                    padding: "8px 12px",
+                    outline: "none",
+                    wordBreak: "break-word",
+                    whiteSpace: "pre-wrap",
+                    overflowWrap: "break-word",
+                    lineHeight: "1.5",
+                    ...inputStyle
+                  },
+                  suppressContentEditableWarning: true
+                }
+              )
+            ]
+          }
+        ),
+        showPicker && /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: { position: "relative" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+            "button",
+            {
+              type: "button",
+              onClick: () => setPickerOpen(!pickerOpen),
+              className: "emoji-input-picker-btn",
+              style: {
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "8px",
+                fontSize: "20px",
+                opacity: 0.7,
+                transition: "opacity 0.2s"
+              },
+              onMouseEnter: (e) => e.currentTarget.style.opacity = "1",
+              onMouseLeave: (e) => e.currentTarget.style.opacity = "0.7",
+              children: "\u{1F60A}"
+            }
+          ),
+          pickerOpen && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+            "div",
+            {
+              style: {
+                position: "absolute",
+                bottom: "100%",
+                right: 0,
+                marginBottom: "8px",
+                zIndex: 1e3
+              },
+              children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(EmojiPicker, { onSelect: handleEmojiSelect })
+            }
+          )
+        ] })
+      ]
+    }
+  );
+});
+EmojiInputComponent.displayName = "EmojiInput";
+var EmojiInput = EmojiInputComponent;
+
 // src/utils/preload.ts
 var emojiMap3 = emoji_map_default;
 var BASE_ANIMATED_URL2 = "https://raw.githubusercontent.com/AyuXh/telegram-emoji/main/animated/main";
@@ -1925,6 +2246,7 @@ var getAvailableShortcodes = () => {
 0 && (module.exports = {
   AnimatedEmoji,
   EVENT_NAME,
+  EmojiInput,
   EmojiPicker,
   EmojiRenderer,
   EmojiText,
@@ -1934,6 +2256,7 @@ var getAvailableShortcodes = () => {
   getAvailableShortcodes,
   preloadEmojis,
   preloadPopularEmojis,
+  useEmojiInput,
   useEmojiStyle
 });
 //# sourceMappingURL=index.js.map

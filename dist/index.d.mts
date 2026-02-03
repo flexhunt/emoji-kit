@@ -1,4 +1,4 @@
-import React from 'react';
+import React$1 from 'react';
 
 type EmojiStyle = 'apple' | 'google' | 'twitter' | 'facebook' | 'native' | 'flexhunt';
 declare const STORAGE_KEY = "emoji-style";
@@ -13,13 +13,13 @@ interface AnimatedEmojiProps {
     id: string;
     size?: number | string;
     className?: string;
-    style?: React.CSSProperties;
+    style?: React$1.CSSProperties;
     /**
      * Override the global style for this specific emoji
      */
     emojiStyle?: EmojiStyle;
 }
-declare const AnimatedEmoji: React.FC<AnimatedEmojiProps>;
+declare const AnimatedEmoji: React$1.FC<AnimatedEmojiProps>;
 
 interface EmojiTextProps {
     text: string;
@@ -27,14 +27,14 @@ interface EmojiTextProps {
     emojiSet?: EmojiStyle;
     size?: number | string;
 }
-declare const EmojiText: React.FC<EmojiTextProps>;
+declare const EmojiText: React$1.FC<EmojiTextProps>;
 
 interface EmojiRendererProps {
     text: string;
     size?: number | string;
     className?: string;
 }
-declare const EmojiRenderer: React.FC<EmojiRendererProps>;
+declare const EmojiRenderer: React$1.FC<EmojiRendererProps>;
 
 interface CategoryConfig {
     id: string;
@@ -54,7 +54,59 @@ interface EmojiPickerProps {
     showFooter?: boolean;
     emojiSize?: number;
 }
-declare const EmojiPicker: React.FC<EmojiPickerProps>;
+declare const EmojiPicker: React$1.FC<EmojiPickerProps>;
+
+interface EmojiInputProps {
+    /** Current value (plain text with emojis) */
+    value?: string;
+    /** Called when text changes */
+    onChange?: (text: string) => void;
+    /** Called when Enter is pressed (without Shift) */
+    onSubmit?: (text: string) => void;
+    /** Placeholder text */
+    placeholder?: string;
+    /** Additional class names */
+    className?: string;
+    /** Size of emojis in pixels */
+    emojiSize?: number;
+    /** Show emoji picker button */
+    showPicker?: boolean;
+    /** Custom styles for the container */
+    style?: React$1.CSSProperties;
+    /** Custom styles for the input area */
+    inputStyle?: React$1.CSSProperties;
+    /** Disable the input */
+    disabled?: boolean;
+    /** Max length of text */
+    maxLength?: number;
+    /** Called on focus */
+    onFocus?: () => void;
+    /** Called on blur */
+    onBlur?: () => void;
+}
+interface EmojiInputRef {
+    /** Focus the input */
+    focus: () => void;
+    /** Clear the input */
+    clear: () => void;
+    /** Get current text value */
+    getText: () => string;
+    /** Insert text at cursor */
+    insertText: (text: string) => void;
+}
+declare const EmojiInput: React$1.ForwardRefExoticComponent<EmojiInputProps & React$1.RefAttributes<EmojiInputRef>>;
+
+interface UseEmojiInputOptions {
+    emojiSize?: number;
+}
+declare function useEmojiInput(options?: UseEmojiInputOptions): {
+    replaceEmojisWithHtml: (text: string) => string;
+    extractTextFromHtml: (html: string) => string;
+    insertHtmlAtCaret: (html: string) => void;
+    handlePaste: (e: React.ClipboardEvent<HTMLDivElement>) => void;
+    processContent: (element: HTMLDivElement) => string;
+    getAllEmojis: (text: string) => string[];
+};
 
 declare const POPULAR_EMOJIS: string[];
 /**
@@ -76,4 +128,4 @@ declare const getAvailableEmojis: () => string[];
  */
 declare const getAvailableShortcodes: () => string[];
 
-export { AnimatedEmoji, EVENT_NAME, EmojiPicker, EmojiRenderer, type EmojiStyle, EmojiText, POPULAR_EMOJIS, STORAGE_KEY, getAvailableEmojis, getAvailableShortcodes, preloadEmojis, preloadPopularEmojis, useEmojiStyle };
+export { AnimatedEmoji, EVENT_NAME, EmojiInput, type EmojiInputProps, type EmojiInputRef, EmojiPicker, EmojiRenderer, type EmojiStyle, EmojiText, POPULAR_EMOJIS, STORAGE_KEY, getAvailableEmojis, getAvailableShortcodes, preloadEmojis, preloadPopularEmojis, useEmojiInput, useEmojiStyle };
