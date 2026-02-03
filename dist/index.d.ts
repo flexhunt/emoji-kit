@@ -69,6 +69,8 @@ interface EmojiInputProps {
     className?: string;
     /** Size of emojis in pixels */
     emojiSize?: number;
+    /** Emoji style: 'apple' | 'google' | 'twitter' | 'facebook' | 'flexhunt' */
+    emojiStyle?: EmojiStyle;
     /** Show emoji picker button */
     showPicker?: boolean;
     /** Custom styles for the container */
@@ -98,6 +100,8 @@ declare const EmojiInput: React$1.ForwardRefExoticComponent<EmojiInputProps & Re
 
 interface UseEmojiInputOptions {
     emojiSize?: number;
+    /** Emoji style: 'apple' | 'google' | 'twitter' | 'facebook' | 'flexhunt' */
+    emojiStyle?: EmojiStyle;
 }
 declare function useEmojiInput(options?: UseEmojiInputOptions): {
     replaceEmojisWithHtml: (text: string) => string;

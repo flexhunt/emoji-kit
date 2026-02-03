@@ -1834,42 +1834,70 @@ import { useRef as useRef3, useState as useState4, useEffect as useEffect3, useC
 
 // src/hooks/use-emoji-input.ts
 import { useCallback as useCallback2, useRef as useRef2 } from "react";
+var emojiMap3 = emoji_map_default;
 var EMOJI_REGEX2 = emoji_regex_default();
-var SHORTCODE_REGEX = /:[a-zA-Z0-9_+-]+:/g;
+var ANIMATED_BASE_URL = "https://raw.githubusercontent.com/Tarikul-Islam-Anik/Telegram-Animated-Emojis/main";
+var APPLE_CDN_URL = "https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.0.0/img/apple/64";
+var toHex4 = (str) => {
+  const output = [];
+  for (let i = 0; i < str.length; i++) {
+    const code = str.codePointAt(i);
+    if (code) {
+      if (code === 65039) continue;
+      output.push(code.toString(16).toLowerCase());
+      if (code > 65535) i++;
+    }
+  }
+  return output.join("-");
+};
 function useEmojiInput(options = {}) {
-  const { emojiSize = 20 } = options;
+  const { emojiSize = 20, emojiStyle: propStyle } = options;
+  const { style: globalStyle } = useEmojiStyle();
+  const activeStyle = propStyle || globalStyle || "flexhunt";
   const lastHtmlRef = useRef2("");
   const getAllEmojis = useCallback2((text) => {
-    const emojis = [];
     const nativeMatches = text.match(EMOJI_REGEX2);
     if (nativeMatches) {
-      emojis.push(...nativeMatches);
+      return [...new Set(nativeMatches)];
     }
-    const shortcodeMatches = text.match(SHORTCODE_REGEX);
-    if (shortcodeMatches) {
-      emojis.push(...shortcodeMatches);
-    }
-    return [...new Set(emojis)];
+    return [];
   }, []);
   const createEmojiHtml = useCallback2((emoji) => {
-    const isShortcode = emoji.startsWith(":") && emoji.endsWith(":");
-    const emojiId = isShortcode ? emoji.slice(1, -1) : emoji;
-    return `<span 
-            class="emoji-input-emoji" 
+    const hex = toHex4(emoji);
+    if (!hex) return emoji;
+    let imgUrl = "";
+    if (activeStyle === "flexhunt") {
+      const animatedPath = emojiMap3[emoji];
+      if (animatedPath) {
+        imgUrl = `${ANIMATED_BASE_URL}/${encodeURIComponent(animatedPath)}`;
+      } else {
+        imgUrl = `${APPLE_CDN_URL}/${hex}.png`;
+      }
+    } else {
+      const cdnMap = {
+        apple: `https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.0.0/img/apple/64/${hex}.png`,
+        google: `https://cdn.jsdelivr.net/npm/emoji-datasource-google@15.0.0/img/google/64/${hex}.png`,
+        twitter: `https://cdn.jsdelivr.net/npm/emoji-datasource-twitter@15.0.0/img/twitter/64/${hex}.png`,
+        facebook: `https://cdn.jsdelivr.net/npm/emoji-datasource-facebook@15.0.0/img/facebook/64/${hex}.png`
+      };
+      imgUrl = cdnMap[activeStyle] || cdnMap.apple;
+    }
+    return `<img 
+            src="${imgUrl}" 
+            alt="${emoji}"
             data-emoji="${emoji}" 
-            data-emoji-id="${emojiId}"
-            contenteditable="false"
+            draggable="false"
             style="
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
+                display: inline-block;
                 width: ${emojiSize}px;
                 height: ${emojiSize}px;
                 vertical-align: middle;
-                user-select: all;
+                margin: 0 1px;
+                object-fit: contain;
             "
-        >${emoji}</span>`;
-  }, [emojiSize]);
+            onerror="this.style.display='none';this.insertAdjacentHTML('afterend','${emoji}')"
+        />`;
+  }, [emojiSize, activeStyle]);
   const replaceEmojisWithHtml = useCallback2((text) => {
     const emojis = getAllEmojis(text);
     let result = text;
@@ -1956,6 +1984,7 @@ var EmojiInputComponent = forwardRef((props, ref) => {
     placeholder = "Type a message...",
     className = "",
     emojiSize = 20,
+    emojiStyle,
     showPicker = true,
     style,
     inputStyle,
@@ -1972,7 +2001,7 @@ var EmojiInputComponent = forwardRef((props, ref) => {
     extractTextFromHtml,
     handlePaste,
     processContent
-  } = useEmojiInput({ emojiSize });
+  } = useEmojiInput({ emojiSize, emojiStyle });
   useImperativeHandle(ref, () => ({
     focus: () => inputRef.current?.focus(),
     clear: () => {
@@ -2149,7 +2178,7 @@ EmojiInputComponent.displayName = "EmojiInput";
 var EmojiInput = EmojiInputComponent;
 
 // src/utils/preload.ts
-var emojiMap3 = emoji_map_default;
+var emojiMap4 = emoji_map_default;
 var BASE_ANIMATED_URL2 = "https://raw.githubusercontent.com/AyuXh/telegram-emoji/main/animated/main";
 var POPULAR_EMOJIS = [
   "\u{1F60A}",
@@ -2180,7 +2209,7 @@ var POPULAR_EMOJIS = [
 var preloadPopularEmojis = () => {
   if (typeof window === "undefined") return;
   POPULAR_EMOJIS.forEach((emoji) => {
-    const path = emojiMap3[emoji];
+    const path = emojiMap4[emoji];
     if (path) {
       const img = new Image();
       img.src = `${BASE_ANIMATED_URL2}/${path}`;
@@ -2190,7 +2219,7 @@ var preloadPopularEmojis = () => {
 var preloadEmojis = (emojis) => {
   if (typeof window === "undefined") return;
   emojis.forEach((emoji) => {
-    const path = emojiMap3[emoji];
+    const path = emojiMap4[emoji];
     if (path) {
       const img = new Image();
       img.src = `${BASE_ANIMATED_URL2}/${path}`;
@@ -2198,10 +2227,10 @@ var preloadEmojis = (emojis) => {
   });
 };
 var getAvailableEmojis = () => {
-  return Object.keys(emojiMap3).filter((key) => !/^[a-zA-Z0-9_+-]+$/.test(key));
+  return Object.keys(emojiMap4).filter((key) => !/^[a-zA-Z0-9_+-]+$/.test(key));
 };
 var getAvailableShortcodes = () => {
-  return Object.keys(emojiMap3).filter((key) => /^[a-zA-Z0-9_+-]+$/.test(key));
+  return Object.keys(emojiMap4).filter((key) => /^[a-zA-Z0-9_+-]+$/.test(key));
 };
 export {
   AnimatedEmoji,

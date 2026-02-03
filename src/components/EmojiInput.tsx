@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { useEmojiInput } from '../hooks/use-emoji-input'
 import { EmojiPicker } from './EmojiPicker'
+import { EmojiStyle } from '../hooks/use-emoji-style'
 
 export interface EmojiInputProps {
     /** Current value (plain text with emojis) */
@@ -15,6 +16,8 @@ export interface EmojiInputProps {
     className?: string
     /** Size of emojis in pixels */
     emojiSize?: number
+    /** Emoji style: 'apple' | 'google' | 'twitter' | 'facebook' | 'flexhunt' */
+    emojiStyle?: EmojiStyle
     /** Show emoji picker button */
     showPicker?: boolean
     /** Custom styles for the container */
@@ -50,6 +53,7 @@ const EmojiInputComponent = forwardRef<EmojiInputRef, EmojiInputProps>((props, r
         placeholder = 'Type a message...',
         className = '',
         emojiSize = 20,
+        emojiStyle,
         showPicker = true,
         style,
         inputStyle,
@@ -68,7 +72,7 @@ const EmojiInputComponent = forwardRef<EmojiInputRef, EmojiInputProps>((props, r
         extractTextFromHtml,
         handlePaste,
         processContent
-    } = useEmojiInput({ emojiSize })
+    } = useEmojiInput({ emojiSize, emojiStyle })
 
     // Expose methods via ref
     useImperativeHandle(ref, () => ({

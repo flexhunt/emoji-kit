@@ -1,65 +1,101 @@
 import { useCallback, useRef } from 'react'
 import emojiRegex from 'emoji-regex'
+// @ts-ignore
+import emojiMapRaw from '../data/emoji-map.json'
+import { EmojiStyle, useEmojiStyle } from './use-emoji-style'
+
+const emojiMap: Record<string, string> = emojiMapRaw
 
 const EMOJI_REGEX = emojiRegex()
-const SHORTCODE_REGEX = /:[a-zA-Z0-9_+-]+:/g
 
-// Transparent 1x1 gif for emoji placeholder
-const TRANSPARENT_GIF = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+// Base URLs for emoji images
+const ANIMATED_BASE_URL = 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Telegram-Animated-Emojis/main'
+const APPLE_CDN_URL = 'https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.0.0/img/apple/64'
+
+// Convert emoji to hex code for CDN URL
+const toHex = (str: string): string => {
+    const output: string[] = []
+    for (let i = 0; i < str.length; i++) {
+        const code = str.codePointAt(i)
+        if (code) {
+            if (code === 0xfe0f) continue // Skip variation selector
+            output.push(code.toString(16).toLowerCase())
+            if (code > 0xffff) i++
+        }
+    }
+    return output.join('-')
+}
 
 interface UseEmojiInputOptions {
     emojiSize?: number
+    /** Emoji style: 'apple' | 'google' | 'twitter' | 'facebook' | 'flexhunt' */
+    emojiStyle?: EmojiStyle
 }
 
 export function useEmojiInput(options: UseEmojiInputOptions = {}) {
-    const { emojiSize = 20 } = options
+    const { emojiSize = 20, emojiStyle: propStyle } = options
+    const { style: globalStyle } = useEmojiStyle()
+    const activeStyle = propStyle || globalStyle || 'flexhunt'
     const lastHtmlRef = useRef<string>('')
 
     /**
-     * Get all emojis from text (both native and shortcodes)
+     * Get all native emojis from text (shortcodes removed to prevent cursor issues)
      */
     const getAllEmojis = useCallback((text: string): string[] => {
-        const emojis: string[] = []
-
-        // Find native emojis
+        // Find native emojis only
         const nativeMatches = text.match(EMOJI_REGEX)
         if (nativeMatches) {
-            emojis.push(...nativeMatches)
+            return [...new Set(nativeMatches)]
         }
-
-        // Find shortcodes
-        const shortcodeMatches = text.match(SHORTCODE_REGEX)
-        if (shortcodeMatches) {
-            emojis.push(...shortcodeMatches)
-        }
-
-        return [...new Set(emojis)] // Remove duplicates
+        return []
     }, [])
 
     /**
-     * Create HTML for an emoji element
+     * Create HTML for a native emoji element
      */
     const createEmojiHtml = useCallback((emoji: string): string => {
-        const isShortcode = emoji.startsWith(':') && emoji.endsWith(':')
-        const emojiId = isShortcode ? emoji.slice(1, -1) : emoji
+        const hex = toHex(emoji)
+        if (!hex) return emoji // Return as-is if can't convert
 
-        // We use a span with data attributes that will be styled/replaced by CSS or JS
-        return `<span 
-            class="emoji-input-emoji" 
+        // Get image URL based on selected style
+        let imgUrl = ''
+
+        if (activeStyle === 'flexhunt') {
+            // Use Flexhunt/Telegram animated emoji
+            const animatedPath = emojiMap[emoji]
+            if (animatedPath) {
+                imgUrl = `${ANIMATED_BASE_URL}/${encodeURIComponent(animatedPath)}`
+            } else {
+                // Fallback to Apple for unmapped emojis
+                imgUrl = `${APPLE_CDN_URL}/${hex}.png`
+            }
+        } else {
+            // Use platform-specific CDN
+            const cdnMap: Record<string, string> = {
+                apple: `https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.0.0/img/apple/64/${hex}.png`,
+                google: `https://cdn.jsdelivr.net/npm/emoji-datasource-google@15.0.0/img/google/64/${hex}.png`,
+                twitter: `https://cdn.jsdelivr.net/npm/emoji-datasource-twitter@15.0.0/img/twitter/64/${hex}.png`,
+                facebook: `https://cdn.jsdelivr.net/npm/emoji-datasource-facebook@15.0.0/img/facebook/64/${hex}.png`
+            }
+            imgUrl = cdnMap[activeStyle] || cdnMap.apple
+        }
+
+        return `<img 
+            src="${imgUrl}" 
+            alt="${emoji}"
             data-emoji="${emoji}" 
-            data-emoji-id="${emojiId}"
-            contenteditable="false"
+            draggable="false"
             style="
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
+                display: inline-block;
                 width: ${emojiSize}px;
                 height: ${emojiSize}px;
                 vertical-align: middle;
-                user-select: all;
+                margin: 0 1px;
+                object-fit: contain;
             "
-        >${emoji}</span>`
-    }, [emojiSize])
+            onerror="this.style.display='none';this.insertAdjacentHTML('afterend','${emoji}')"
+        />`
+    }, [emojiSize, activeStyle])
 
     /**
      * Replace all text emojis with styled HTML elements

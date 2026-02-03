@@ -1,17 +1,8 @@
 # ✨ @ayuuxh/emoji-kit
 
-**Multi-style emoji rendering for React - Animated 3D, Apple, Google, Twitter, Facebook & Native!**
+**Multi-style emoji rendering for React — Animated 3D, Apple, Google, Twitter, Facebook & Native!**
 
-## 🎯 What It Does
-
-| Input | Style | Output |
-|-------|-------|--------|
-| `😊` or `:smile:` | **flexhunt** | 3D Animated Telegram emoji |
-| `😊` or `:smile:` | **apple** | Apple emoji from CDN |
-| `😊` or `:smile:` | **google/twitter/facebook** | Respective platform emoji |
-| `😊` or `:smile:` | **native** | System default emoji |
-
-**Smart Fallback:** If animated version isn't available → automatically shows Apple style!
+[![npm](https://img.shields.io/npm/v/@ayuuxh/emoji-kit)](https://www.npmjs.com/package/@ayuuxh/emoji-kit)
 
 ---
 
@@ -23,39 +14,117 @@ npm install @ayuuxh/emoji-kit
 
 ---
 
-## 🚀 Usage
+## 🎯 Components Overview
 
-### Basic - Render Text with Emojis
+| Component | Purpose | Input | Output |
+|-----------|---------|-------|--------|
+| `AnimatedEmoji` | Single emoji | `😀` or `fire` | Styled emoji image |
+| `EmojiRenderer` | Text with emojis | `"Hello 😀 :fire:"` | Text + styled emojis |
+| `EmojiInput` | Editable input | User typing | Live styled emojis |
+| `EmojiPicker` | Emoji selector | Click | Selected emoji |
 
-```tsx
-import { EmojiRenderer } from '@ayuuxh/emoji-kit'
+---
 
-// Automatically detects and renders ALL emojis in text
-<EmojiRenderer text="Hello World! 🚀 This is :fire: awesome!" size={24} />
-```
+## 🚀 Quick Start
 
-### Single Emoji
+### 1. AnimatedEmoji — Single Emoji
 
 ```tsx
 import { AnimatedEmoji } from '@ayuuxh/emoji-kit'
 
+// Native emoji
 <AnimatedEmoji id="🔥" size={48} />
-<AnimatedEmoji id="rocket" size={48} />  // shortcode without colons
+
+// Shortcode (without colons)
+<AnimatedEmoji id="fire" size={48} />
+
+// Force specific style
+<AnimatedEmoji id="😊" size={32} emojiStyle="apple" />
+<AnimatedEmoji id="😊" size={32} emojiStyle="flexhunt" />
 ```
 
-### Force Specific Style
+**Available Styles:** `flexhunt` (animated), `apple`, `google`, `twitter`, `facebook`, `native`
+
+---
+
+### 2. EmojiRenderer — Display Text with Emojis
 
 ```tsx
-<AnimatedEmoji id="😊" emojiStyle="apple" size={32} />
-<AnimatedEmoji id="😊" emojiStyle="flexhunt" size={32} />
+import { EmojiRenderer } from '@ayuuxh/emoji-kit'
+
+// Auto-detects and renders ALL emojis in text
+<EmojiRenderer 
+  text="Hello World! 🚀 This is :fire: awesome!" 
+  size={24} 
+/>
 ```
 
-### Global Style Switcher
+**Supports:**
+- ✅ Native emojis: `😀 🔥 ❤️`
+- ✅ Shortcodes: `:fire:` `:heart:` `:rocket:`
+
+---
+
+### 3. EmojiInput — Editable Input with Live Emojis
+
+```tsx
+import { EmojiInput } from '@ayuuxh/emoji-kit'
+
+<EmojiInput
+  placeholder="Type a message..."
+  onSubmit={(text) => console.log(text)}
+  onChange={(text) => console.log(text)}
+  emojiSize={24}
+  showPicker={true}
+/>
+```
+
+**Props:**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `value` | `string` | `''` | Controlled value |
+| `onChange` | `(text: string) => void` | — | Called on text change |
+| `onSubmit` | `(text: string) => void` | — | Called on Enter press |
+| `placeholder` | `string` | `'Type...'` | Placeholder text |
+| `emojiSize` | `number` | `20` | Emoji size in px |
+| `emojiStyle` | `EmojiStyle` | global | Emoji style to use |
+| `showPicker` | `boolean` | `true` | Show emoji picker button |
+| `disabled` | `boolean` | `false` | Disable input |
+| `maxLength` | `number` | — | Max text length |
+
+**Ref Methods:**
+```tsx
+const inputRef = useRef<EmojiInputRef>(null)
+
+inputRef.current?.focus()      // Focus the input
+inputRef.current?.clear()      // Clear the input
+inputRef.current?.getText()    // Get current text
+inputRef.current?.insertText('🔥')  // Insert text/emoji
+```
+
+---
+
+### 4. EmojiPicker — Select Emojis
+
+```tsx
+import { EmojiPicker } from '@ayuuxh/emoji-kit'
+
+<EmojiPicker 
+  onSelect={(emoji) => console.log(emoji)} 
+/>
+```
+
+---
+
+## 🎨 Global Style Switching
+
+Use `useEmojiStyle` hook to change emoji style globally (persists in localStorage):
 
 ```tsx
 import { useEmojiStyle } from '@ayuuxh/emoji-kit'
 
-function EmojiSettings() {
+function EmojiStyleSelector() {
   const { style, setStyle } = useEmojiStyle()
 
   return (
@@ -71,89 +140,100 @@ function EmojiSettings() {
 }
 ```
 
----
-
-## 🔧 How It Works
-
-```
-Input: "Hello 😊 :fire:" + Style: "apple"
-              ↓
-┌─────────────────────────────────────────────┐
-│ EmojiRenderer                               │
-│ Uses emoji-regex to detect ALL emojis       │
-│ Splits into: ["Hello ", "😊", " ", "fire"]  │
-└─────────────────────────────────────────────┘
-              ↓
-┌─────────────────────────────────────────────┐
-│ AnimatedEmoji (for each emoji)              │
-│                                             │
-│ Style = flexhunt?                           │
-│   YES → Telegram animated (our map)         │
-│         Not in map? → Apple CDN fallback    │
-│   NO (apple/google/twitter/fb) →            │
-│         CDN URL with emoji hex code         │
-│         Not working? → Animated fallback    │
-│         Still not? → Native text fallback   │
-└─────────────────────────────────────────────┘
-```
+**Note:** All components read from this global style automatically!
 
 ---
 
-## 📁 Exports
+## 📁 All Exports
 
 ```tsx
 // Components
-export { AnimatedEmoji } from './components/AnimatedEmoji'
-export { EmojiText } from './components/EmojiText'  
-export { EmojiRenderer } from './components/EmojiRenderer'
+import { 
+  AnimatedEmoji,
+  EmojiRenderer,
+  EmojiInput,
+  EmojiPicker,
+  EmojiText 
+} from '@ayuuxh/emoji-kit'
 
 // Hooks
-export { useEmojiStyle } from './hooks/use-emoji-style'
-export type { EmojiStyle } from './hooks/use-emoji-style'
-// EmojiStyle = 'apple' | 'google' | 'twitter' | 'facebook' | 'native' | 'flexhunt'
+import { 
+  useEmojiStyle,
+  useEmojiInput 
+} from '@ayuuxh/emoji-kit'
+
+// Types
+import type { 
+  EmojiStyle,          // 'apple' | 'google' | 'twitter' | 'facebook' | 'native' | 'flexhunt'
+  EmojiInputProps,
+  EmojiInputRef 
+} from '@ayuuxh/emoji-kit'
 ```
 
 ---
 
-## 🤖 For LLMs / AI Coders
+## 🔧 How Fallback Works
 
-**If you're an LLM helping someone use this library, here's the quickest path:**
-
-### Step 1: Install
-```bash
-npm install @ayuuxh/emoji-kit
 ```
+Input: "😊" + Style: "flexhunt"
+       ↓
+┌─────────────────────────────────────┐
+│ 1. Check Telegram animated map      │
+│    Found? → Use animated webp       │
+│    Not found? ↓                     │
+│ 2. Try Apple CDN (static png)       │
+│    Failed? ↓                        │
+│ 3. Show native text emoji           │
+└─────────────────────────────────────┘
 
-### Step 2: Basic Usage
-```tsx
-import { EmojiRenderer, useEmojiStyle } from '@ayuuxh/emoji-kit'
-
-function MyComponent() {
-  return <EmojiRenderer text="Hello 👋 :fire:" size={24} />
-}
+Input: "😊" + Style: "apple"
+       ↓
+┌─────────────────────────────────────┐
+│ 1. Try Apple CDN with hex code      │
+│    Failed? ↓                        │
+│ 2. Try alternate hex format         │
+│    Failed? ↓                        │
+│ 3. Try animated fallback            │
+│    Failed? ↓                        │
+│ 4. Show native text emoji           │
+└─────────────────────────────────────┘
 ```
-
-### Step 3: Style Switching (Optional)
-```tsx
-const { style, setStyle } = useEmojiStyle()
-setStyle('apple')  // or 'flexhunt', 'google', 'twitter', 'facebook', 'native'
-```
-
-### Key Points for LLMs:
-1. **EmojiRenderer** - Takes `text` prop, auto-detects emojis (native or `:shortcode:`)
-2. **AnimatedEmoji** - Takes `id` prop (emoji char or shortcode without colons)
-3. **useEmojiStyle** - Hook to get/set global emoji style (persists in localStorage)
-4. **Fallback chain**: Flexhunt animated → CDN (apple/google/etc) → Native text
-5. **No CSS imports needed** - All styles are inline
-6. **Works with**: Next.js, Vite, Create React App (SSR compatible)
-
-### Common Issues:
-- **Emoji not rendering?** Check if the style is set correctly
-- **404 on images?** Library auto-retries with alternate hex format, then falls back
-- **Shortcodes not working?** Use without colons in AnimatedEmoji: `id="fire"` not `id=":fire:"`
 
 ---
 
-## License
+## ⚠️ Important Notes
 
-MIT
+1. **Shortcodes in EmojiInput**: Only native emojis work in `EmojiInput`. Shortcodes (`:fire:`) are NOT converted to prevent cursor issues. Use `EmojiRenderer` for shortcode support.
+
+2. **Shortcodes always animated**: In `EmojiRenderer`, shortcodes always show animated style because platform CDNs don't have images for shortcode names.
+
+3. **SSR Compatible**: Works with Next.js App Router, Server Components, and SSR.
+
+4. **No CSS imports needed**: All styles are inline.
+
+---
+
+## 🤖 For AI/LLMs
+
+**Quickest integration:**
+
+```tsx
+// Display messages with styled emojis
+import { EmojiRenderer } from '@ayuuxh/emoji-kit'
+<EmojiRenderer text="Hello 👋 world!" size={24} />
+
+// Chat input with live emoji rendering
+import { EmojiInput } from '@ayuuxh/emoji-kit'
+<EmojiInput onSubmit={(text) => sendMessage(text)} />
+
+// Change global style
+import { useEmojiStyle } from '@ayuuxh/emoji-kit'
+const { setStyle } = useEmojiStyle()
+setStyle('apple')
+```
+
+---
+
+## 📄 License
+
+MIT © [Ayush](https://github.com/flexhunt)
